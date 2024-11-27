@@ -1,11 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, ChangeEvent, FormEvent } from 'react';
 
-const Institute = () => {
-  const [showProfessorForm, setShowProfessorForm] = useState(false);
-  const [showDepartmentForm, setShowDepartmentForm] = useState(false);
-  const [professorInputMethod, setProfessorInputMethod] = useState('input');
-  const [departmentInputMethod, setDepartmentInputMethod] = useState('input');
-  const [professorData, setProfessorData] = useState({
+const Institute: React.FC = () => {
+  const [showProfessorForm, setShowProfessorForm] = useState<boolean>(false);
+  const [showDepartmentForm, setShowDepartmentForm] = useState<boolean>(false);
+  const [professorInputMethod, setProfessorInputMethod] = useState<string>('input');
+  const [departmentInputMethod, setDepartmentInputMethod] = useState<string>('input');
+  const [professorData, setProfessorData] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+    subject: string;
+    post: string;
+    file: File | null;
+  }>({
     name: '',
     email: '',
     phone: '',
@@ -13,43 +20,48 @@ const Institute = () => {
     post: '',
     file: null,
   });
-  const [departmentData, setDepartmentData] = useState({
+  const [departmentData, setDepartmentData] = useState<{
+    departmentName: string;
+    numberOfClasses: string;
+    classesNumber: string[];
+    file: File | null;
+  }>({
     departmentName: '',
     numberOfClasses: '',
     classesNumber: [''], // Initialize as an array with one empty string
     file: null,
   });
 
-  const handleProfessorInputChange = (e) => {
+  const handleProfessorInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setProfessorData({ ...professorData, [name]: value });
+    setProfessorData((prevData) => ({ ...prevData, [name]: value }));
   };
 
-  const handleDepartmentInputChange = (e) => {
+  const handleDepartmentInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setDepartmentData({ ...departmentData, [name]: value });
+    setDepartmentData((prevData) => ({ ...prevData, [name]: value }));
   };
 
-  const handleProfessorFileChange = (e) => {
+  const handleProfessorFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const file = e.target.files[0];
       const validExtensions = ['.xls', '.xlsx', '.csv'];
       const isValid = validExtensions.some((ext) => file.name.endsWith(ext));
       if (isValid) {
-        setProfessorData({ ...professorData, file });
+        setProfessorData((prevData) => ({ ...prevData, file }));
       } else {
         alert('Please upload a valid Excel or spreadsheet file (.xls, .xlsx, .csv).');
       }
     }
   };
 
-  const handleDepartmentFileChange = (e) => {
+  const handleDepartmentFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const file = e.target.files[0];
       const validExtensions = ['.xls', '.xlsx', '.csv'];
       const isValid = validExtensions.some((ext) => file.name.endsWith(ext));
       if (isValid) {
-        setDepartmentData({ ...departmentData, file });
+        setDepartmentData((prevData) => ({ ...prevData, file }));
       } else {
         alert('Please upload a valid Excel or spreadsheet file (.xls, .xlsx, .csv).');
       }
@@ -57,13 +69,13 @@ const Institute = () => {
   };
 
   const handleAddClassNumber = () => {
-    setDepartmentData({
-      ...departmentData,
-      classesNumber: [...departmentData.classesNumber, ''],
-    });
+    setDepartmentData((prevData) => ({
+      ...prevData,
+      classesNumber: [...prevData.classesNumber, ''],
+    }));
   };
 
-  const handleSubmitProfessor = (e) => {
+  const handleSubmitProfessor = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     // Handle professor submission logic here
     console.log('Professor Data:', professorData);
@@ -79,7 +91,7 @@ const Institute = () => {
     setShowProfessorForm(false);
   };
 
-  const handleSubmitDepartment = (e) => {
+  const handleSubmitDepartment = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     // Handle department submission logic here
     console.log('Department Data:', departmentData);
@@ -118,7 +130,7 @@ const Institute = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
             <h3 className="text-xl font-bold mb-4">Add Professor</h3>
-            <p className="text-gray-600 mb-4">Fill in the details below to add a new professor.</p>
+            <p className="text-gray-600 mb-4">You can add a Professor manually or upload the required Excel file<strong>(Excel file must contain Name, Email, Phone Number, Post, Subject.)</strong></p>
             <form onSubmit={handleSubmitProfessor}>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Input Method:</label>
@@ -228,7 +240,6 @@ const Institute = () => {
                     name="file"
                     accept=".xls,.xlsx,.csv"
                     onChange={handleProfessorFileChange}
-                    className ="mt-1 block w-full border-gray-300 rounded-lg shadow-sm"
                     required
                   />
                 </div>
@@ -259,7 +270,7 @@ const Institute = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
             <h3 className="text-xl font-bold mb-4">Add Department</h3>
-            <p className="text-gray-600 mb-4">Fill in the details below to add a new department.</p>
+            <p className="text-gray-600 mb-4">You can add a Department manually or upload the required Excel file <strong>(Excel file must contain Department Name, Number of Classes, Classes Names)</strong></p>
             <form onSubmit={handleSubmitDepartment}>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Input Method:</label>
@@ -336,7 +347,6 @@ const Institute = () => {
                             updatedClassesNumber[index] = e.target.value;
                             setDepartmentData({ ...departmentData, classesNumber: updatedClassesNumber });
                           }}
-                          className="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
                           placeholder="Enter Class Number"
                           required
                         />
@@ -353,7 +363,7 @@ const Institute = () => {
                 </>
               )}
 
-              { departmentInputMethod === "file" && (
+              {departmentInputMethod === "file" && (
                 <div className="mb-4">
                   <label htmlFor="file" className="block text-sm font-medium text-gray-700">Upload File (Excel/Spreadsheet Only)</label>
                   <input

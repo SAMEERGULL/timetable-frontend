@@ -126,8 +126,18 @@ const Dashboard: React.FC = () => {
             <h3 className="text-xl font-bold mb-4">{formType}</h3>
             <p className="text-gray-600 mb-4">
               {formType === "Add User" && "Fill in the details below to add a new user."}
-              {formType === "Add Teacher" && "You can add a teacher manually or upload the required Excel file."}
-              {formType === "Add Student" && "Please upload the Excel file to add students."}
+              {formType === "Add Teacher" && (
+  <>
+    You can add a teacher manually or upload the required Excel file (
+    <strong>Excel file must contain Name, Email, Phone Number, Post, Subject.</strong>
+    )
+  </>
+)}
+             {formType === "Add Student" && (
+  <>
+    Please upload the Excel file<strong>Excel file must contain Name, Email, Phone Number, Post, Subject.</strong> to add students.
+  </>
+)}
             </p>
             <form onSubmit={handleFormSubmit}>
               {/* Teacher-specific Toggle */}
