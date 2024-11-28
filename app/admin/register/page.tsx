@@ -1,5 +1,5 @@
-"use client"
-import React, { useState, FormEvent } from "react";
+"use client";
+import React, { useState, FormEvent, useEffect } from "react";
 
 const Register: React.FC = () => {
     const [firstName, setFirstName] = useState<string>("");
@@ -24,6 +24,11 @@ const Register: React.FC = () => {
             confirmPassword,
         });
     };
+
+    // Ensure that the initial state is consistent
+    useEffect(() => {
+        // This will run only on the client
+    }, []);
 
     return (
         <section className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -63,7 +68,7 @@ const Register: React.FC = () => {
                         />
                     </div>
                     <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                        <label htmlFor="email" className=" block text-sm font-medium text-gray-700">
                             Official University Email
                         </label>
                         <input
@@ -102,7 +107,7 @@ const Register: React.FC = () => {
                             id="universityName"
                             name="universityName"
                             className="mt-2 block w-full px-4 py-2 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Your University Name "
+                            placeholder="Your University Name"
                             value={universityName}
                             onChange={(e) => setUniversityName(e.target.value)}
                             required
