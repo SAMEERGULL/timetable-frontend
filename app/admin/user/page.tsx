@@ -1,18 +1,38 @@
-import React, { useState } from "react";
+"use client"
+import { error } from "console";
+import React, { useState, useEffect } from "react";
+
+interface ManagerCreate {
+  name: string;
+  email: string;
+  phone: string;
+  institute_id: number | null; // Assuming institute ID is a number
+}
+
+interface TeacherCreate {
+  name: string;
+  email: string;
+  phone: string;
+  subject: string;
+  institute_id: number | null; // Assuming institute ID is a number
+}
 
 const Dashboard: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [formType, setFormType] = useState("");
   const [formData, setFormData] = useState({
+    id: "",
     name: "",
     email: "",
     phone: "",
-    post: "",
     subject: "",
-    file: null,
+    file: null as File | null,
   });
   const [inputMethod, setInputMethod] = useState("manual");
-
+  const [status, setStatus] = useState<string>('');
+  const instituteIdString = localStorage.getItem('Institute_id');
+  const instituteId: number | null = instituteIdString ? parseInt(instituteIdString, 10) : null;
+  const loggedRole = localStorage.getItem('role');
   // State to hold the lists of users, teachers, and students
   const [users, setUsers] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
@@ -20,12 +40,12 @@ const Dashboard: React.FC = () => {
 
   const resetFormData = () => {
     setFormData({
+      id: "",
       name: "",
       email: "",
       phone: "",
-      post: "",
       subject: "",
-      file: null,
+      file: null as File | null,
     });
     setInputMethod("manual");
   };
@@ -51,22 +71,201 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const addTeachersFromFile = async (file: File | null) => {
+    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/add-teachers/`;
+    const formData = new FormData();
+    formData.append('institute_id', instituteId?.toString() || '');
+    
+    if (file) {
+      formData.append('file', file);
+    } else {
+      throw new Error("No file provided");
+    }
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to add teachers from file');
+      }
+
+      const data = await response.json();
+      setTeachers(data)
+      console.log('Teachers added successfully from file:', data);
+      setStatus(data.message);
+    } catch (error) {
+      setStatus('Error: ' + (error as Error).message);
+    }
+  };
+
+  const addTeachersManually = async () => {
+    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/add-teachers/`;
+    const teachersData: TeacherCreate[] = [
+      {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        subject: formData.subject,
+        institute_id: instituteId,
+      }
+    ];
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ institute_id: instituteId, teachers: teachersData, file: null }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to add teachers manually');
+      }
+
+      const data = await response.json();
+      setTeachers(data)
+      console.log('Teachers added successfully from manual entry:', data);
+      setStatus(data.message);
+    } catch (error) {
+      setStatus('Error: ' + (error as Error).message);
+    }
+  };
+
+  const updateUser  = async (userId:any, userData:any) => {
+    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/update-user/${userId}/`; // API URL
+  
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData), // Send the user data as JSON
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to update user');
+      }
+  
+      const data = await response.json();
+      console.log('User  updated successfully:', data);
+      return data; // Return the response data for further processing
+  
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error; // Re-throw the error for further handling if needed
+    }
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formType === "Add User") {
       setUsers([...users, { ...formData }]);
+      const managerData: ManagerCreate = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        institute_id: instituteId,
+      }
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/add-manager/`;
+      console.log('API URL:', apiUrl); // Log the API URL
+  
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(managerData),
+        });
+  
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Failed to add manager');
+        }
+  
+        const data = await response.json();
+        setStatus(data.message); // Set success message
+  
+      } catch (error) {
+        setStatus('Error: ' + (error as Error).message); // Set error message
+      }
     } else if (formType === "Add Teacher") {
-      setTeachers([...teachers, { ...formData }]);
-    } else if (formType === "Add Student") {
+        if (formData.file) {
+          await addTeachersFromFile(formData.file);
+        } else {
+          await addTeachersManually();
+        }
+      } else if (formType === "Add Student") {
       setStudents([...students, { ...formData }]);
+    }else if (formType === "Edit User") {
+      try {
+        const userId = formData.id; // Assuming you have an id in formData for the user being edited
+        const userData = {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+        };
+        await updateUser (userId, userData);
+        // Update local state after successful update
+        setUsers(users.map(user => user.id === userId ? { ...user, ...userData } : user));
+        setStatus('User  updated successfully');
+      } catch (error) {
+        setStatus('Error: ' + (error as Error).message);
+      }
     }
     resetFormData();
     setShowForm(false);
   };
 
-  const handleDelete = (id: number, type: string) => {
-    if (type === "user") {
-      setUsers(users.filter((_, index) => index !== id));
+  const deleteUser  = async (user_id:number, instituteId:number|null) => {
+    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/delete-user/${user_id}/?institute_id=${instituteId}`; // API URL
+  
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to delete user');
+      }
+  
+      const data = await response.json();
+      console.log('User  deleted successfully:', data);
+      return data; // Return the response data for further processing
+  
+    } catch (error) {
+      console.log('Error deleting user:', (error as Error));
+      throw error; // Re-throw the error for further handling if needed
+    }
+  };
+
+  const handleDelete = async (id: number, type: string) => {
+    if (type === "user") { // Assuming id is the index in the users array
+      const user_id = users[id].id;
+      console.log(user_id);
+      console.log(instituteId);
+      
+      
+      
+      try {
+        await deleteUser (user_id, instituteId);
+        setUsers(users.filter(user => user.id !== user_id)); // Update local state to remove the deleted user
+        setStatus('User  deleted successfully'); // Set success message
+      } catch (error) {
+        setStatus('Error: ' + (error as Error).message); // Set error message
+      }
     } else if (type === "teacher") {
       setTeachers(teachers.filter((_, index) => index !== id));
     } else if (type === "student") {
@@ -76,11 +275,65 @@ const Dashboard: React.FC = () => {
 
   const handleEdit = (id: number, type: string) => {
     const data = type === "user" ? users[id] : type === "teacher" ? teachers[id] : students[id];
-    setFormData(data);
+    setFormData({...data,
+      id: data.id,
+    });
     setFormType(type === "user" ? "Add User" : type === "teacher" ? "Add Teacher" : "Add Student");
     setShowForm(true);
     handleDelete(id, type); // Remove the entry to allow for re-adding
   };
+  
+  const getData = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formType === "View User") {
+      setUsers([...users, { ...formData }]);
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/users/`; // Ensure this environment variable is set to your API base URL
+
+      const requestBody = {
+        institute_id: instituteId,
+      };
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          setStatus(errorData.detail)
+          throw new Error(errorData.detail || 'Failed to fetch users');
+        }
+
+        const fetchedusers = await response.json();
+        setUsers(fetchedusers) 
+        console.log('Users fetched successfully:', users);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        throw error; // Re-throw the error for further handling if needed
+      }
+    } else if (formType === "Add Teacher") {
+      setTeachers([...teachers, { ...formData }]);
+    } else if (formType === "Add Student") {
+      setStudents([...students, { ...formData }]);
+    }
+    resetFormData();
+    setShowForm(false);
+  };
+
+  useEffect(() => {
+    if (status) {
+      const timer = setTimeout(() => {
+        setStatus(''); // Clear the status message after 3 seconds
+      }, 3000);
+
+      // Cleanup function to clear the timer if the component unmounts or status changes
+      return () => clearTimeout(timer);
+    }
+  }, [status]);
 
   return (
     <div className="p-6 max-w-screen-md mx-auto">
@@ -102,16 +355,17 @@ const Dashboard: React.FC = () => {
           </button>
         ))}
       </div>
-
+      {status && <p className="text-red-600">{status}</p>}
       {/* View buttons */}
       <div className="flex justify-center space-x-4 mb-8">
         {["View User", "View Teacher", "View Student"].map((label) => (
           <button
             key={label}
-            className="px- 4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            onClick={() => {
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            onClick={(e) => {
+              getData(e)
               setFormType(label);
-              setShowForm(false); // Close form to show list
+              setShowForm(false); 
             }}
           >
             {label}
@@ -174,7 +428,7 @@ const Dashboard: React.FC = () => {
               )}
 
               {/* Manual Entry Fields */}
-              {inputMethod === "manual" && (formType === "Add User" || formType === "Add Teacher") && (
+              {inputMethod === "manual" && (formType === "Add User" || formType === "Add Teacher" || formType === "Edit User") && (
                 <>
                   <div className="mb-4">
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700">
@@ -227,23 +481,6 @@ const Dashboard: React.FC = () => {
                       placeholder="1234567890"
                       required
                     />
-                  </div>
-                  <div className="mb-4">
-                    <label htmlFor="post" className="block text-sm font-medium text-gray-700">
-                      Post
-                    </label>
-                    <input
-                      type="text"
-                      id="post"
-                      name="post"
-                      value={formData.post}
-                      onChange={handleInputChange}
-                      maxLength={ 30}
-                      className="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter post"
-                      required
-                    />
-                    <small className="text-gray-500">Max 30 characters.</small>
                   </div>
                   {formType === "Add Teacher" && (
                     <div className="mb-4">
@@ -322,8 +559,12 @@ const Dashboard: React.FC = () => {
                   <th className="border border-gray-300 p-2">Name</th>
                   <th className="border border-gray-300 p-2">Email</th>
                   <th className="border border-gray-300 p-2">Phone</th>
-                  <th className="border border-gray-300 p-2">Post</th>
-                  <th className="border border-gray-300 p-2">Actions</th>
+                  <th className="border border-gray-300 p-2">Role</th>
+                  {loggedRole === 'admin' ? (
+                    <th className="border border-gray-300 p-2">Actions</th>
+                  ):(
+                    <></>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -332,27 +573,36 @@ const Dashboard: React.FC = () => {
                     <td className="border border-gray-300 p-2">{user.name}</td>
                     <td className="border border-gray-300 p-2">{user.email}</td>
                     <td className="border border-gray-300 p-2">{user.phone}</td>
-                    <td className="border border-gray-300 p-2">{user.post}</td>
+                    <td className="border border-gray-300 p-2">{user.role}</td>
                     <td className="border border-gray-300 p-2">
-                      <button
-                        className="px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-                        onClick={() => handleEdit(index, "user")}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 ml-2"
-                        onClick={() => handleDelete(index, "user")}
-                      >
-                        Delete
-                      </button>
+                      {loggedRole === 'admin' ? (
+                        <>
+                          <button
+                            className="px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                            onClick={() => {
+                              handleEdit(index, "user")
+                              setFormType('Edit User')
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 ml-2"
+                            onClick={() => handleDelete(index, "user")}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      ):(
+                        <></>
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : (
-            <p>No users found.</p>
+              <p>No users found.</p>
           )}
         </div>
       )}
@@ -367,7 +617,6 @@ const Dashboard: React.FC = () => {
                   <th className="border border-gray-300 p-2">Name</th>
                   <th className="border border-gray-300 p-2">Email</th>
                   <th className="border border-gray-300 p-2">Phone</th>
-                  <th className="border border-gray-300 p-2">Post</th>
                   <th className="border border-gray-300 p-2">Subject</th>
                   <th className="border border-gray-300 p-2">Actions</th>
                 </tr>
@@ -378,7 +627,6 @@ const Dashboard: React.FC = () => {
                     <td className="border border-gray-300 p-2">{teacher.name}</td>
                     <td className="border border-gray-300 p-2">{teacher.email}</td>
                     <td className="border border-gray-300 p-2">{teacher.phone}</td>
-                    <td className="border border-gray-300 p-2">{teacher.post}</td>
                     <td className="border border-gray-300 p-2">{teacher.subject}</td>
                     <td className="border border-gray-300 p-2">
                       <button
@@ -414,7 +662,7 @@ const Dashboard: React.FC = () => {
                   <th className="border border-gray-300 p-2">Name</th>
                   <th className="border border-gray-300 p-2">Email</th>
                   <th className="border border-gray-300 p-2">Phone</th>
-                  <th className="border border-gray-300 p-2">Post</th>
+                  <th className="border border-gray-300 p-2">Role</th>
                   <th className="border border-gray-300 p-2">Actions</th>
                 </tr>
               </thead>
@@ -424,7 +672,7 @@ const Dashboard: React.FC = () => {
                     <td className="border border-gray-300 p-2">{student.name}</td>
                     <td className="border border-gray-300 p-2">{student.email}</td>
                     <td className="border border-gray-300 p-2">{student.phone}</td>
-                    <td className="border border-gray-300 p-2">{student.post}</td>
+                    <td className="border border-gray-300 p-2">{student.role}</td>
                     <td className="border border-gray-300 p-2">
                       <button
                         className="px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"

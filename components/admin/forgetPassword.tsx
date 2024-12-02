@@ -1,6 +1,46 @@
-import React from "react";
+"use client"
+import React, {useState} from "react";
+
+interface ForgotPasswordRequest {
+  email: string;
+}
 
 const AdminForgotPassword = ({ setShowForgotPassword }:any) => {
+  const [email, setEmail] = useState<string>('');
+  const [status, setStatus] = useState<string>('');
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const requestData: ForgotPasswordRequest = {
+      email,
+    };
+
+    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/forgot-password/`;
+    console.log('API URL:', apiUrl); // Log the API URL
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to send dummy password');
+      }
+
+      const data = await response.json();
+      setStatus(data.message); // Set success message
+      setShowForgotPassword(false);
+    } catch (error) {
+      setStatus('Error: ' + (error as Error).message); // Set error message
+    }
+  };
+
   return (
     <section className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="w-full max-w-md bg-white shadow-md rounded-lg p-6">
@@ -8,9 +48,9 @@ const AdminForgotPassword = ({ setShowForgotPassword }:any) => {
           Forgot Password
         </h2>
         <p className="text-sm text-gray-600 text-center mb-4">
-          Enter your registered email address, and we’ll send you instructions to reset your password.
+          Enter your registered email address, and we’ll send you a password for login.
         </p>
-        <form className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Email Input */}
           <div>
             <label
@@ -25,6 +65,8 @@ const AdminForgotPassword = ({ setShowForgotPassword }:any) => {
               name="email"
               className="mt-2 block w-full px-4 py-2 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
               placeholder="admin@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
@@ -34,7 +76,7 @@ const AdminForgotPassword = ({ setShowForgotPassword }:any) => {
             type="submit"
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 focus:ring-4 focus:ring-blue-300"
           >
-            Send Reset Link
+            Send Email
           </button>
         </form>
 

@@ -1,6 +1,14 @@
 "use client";
 import React, { useState, FormEvent, useEffect } from "react";
 
+interface InstituteCreate {
+    name: string;
+    admin_name: string;
+    admin_email: string;
+    admin_password: string;
+    admin_phone_number: string;
+  }
+
 const Register: React.FC = () => {
     const [firstName, setFirstName] = useState<string>("");
     const [lastName, setLastName] = useState<string>("");
@@ -9,22 +17,57 @@ const Register: React.FC = () => {
     const [universityName, setUniversityName] = useState<string>("");
     const [password, setPassword] = useState<string>("");
     const [confirmPassword, setConfirmPassword] = useState<string>("");
+    const [pass, setPass] = useState<string>("");
     const [showPassword, setShowPassword] = useState<boolean>(false);
+    const [status, setStatus] = useState<string>('');
 
-    const handleSignup = (e: FormEvent<HTMLFormElement>) => {
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        // Add your signup logic here
-        console.log({
-            firstName,
-            lastName,
-            email,
-            phone,
-            universityName,
-            password,
-            confirmPassword,
-        });
-    };
 
+        if (password !== confirmPassword) {
+            setStatus('Passwords do not match');
+            return;
+        } else {
+            setPass(password);
+        }
+    
+        const instituteData: InstituteCreate = {
+          name: universityName,
+          admin_name: firstName + lastName,
+          admin_email: email,
+          admin_password: pass,
+          admin_phone_number: phone,
+        };
+    
+        const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/register-institute/`;
+        console.log('API URL:', apiUrl); // Log the API URL
+    
+        try {
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(instituteData),
+          });
+          
+          if (response.status == 400) {
+            setStatus('Institute already exists');
+          }
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Failed to register institute');
+          }
+    
+          const data = await response.json();
+          setStatus(data.message);
+          window.location.href = '/admin';
+        } catch (error) {
+          setStatus('Error: ' + (error as Error).message);
+        }
+      };
     // Ensure that the initial state is consistent
     useEffect(() => {
         // This will run only on the client
@@ -36,7 +79,7 @@ const Register: React.FC = () => {
                 <h2 className="text-2xl font-bold text-center text-gray-900 mb-6">
                     Register
                 </h2>
-                <form className="space-y-4" onSubmit={handleSignup}>
+                <form className="space-y-4" onSubmit={handleSubmit}>
                     <div>
                         <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
                             First Name
@@ -69,7 +112,7 @@ const Register: React.FC = () => {
                     </div>
                     <div>
                         <label htmlFor="email" className=" block text-sm font-medium text-gray-700">
-                            Official University Email
+                            Institute's Official Email
                         </label>
                         <input
                             type="email"
@@ -100,7 +143,7 @@ const Register: React.FC = () => {
                     </div>
                     <div>
                         <label htmlFor="universityName" className="block text-sm font-medium text-gray-700">
-                            University Name
+                            Institue's Name
                         </label>
                         <input
                             type="text"
@@ -155,6 +198,7 @@ const Register: React.FC = () => {
                             Show Password
                         </label>
                     </div>
+                    {status && <p className="text-red-500">{status}</p>}
                     <button
                         type="submit"
                         className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 focus:ring-4 focus:ring-blue-300"
