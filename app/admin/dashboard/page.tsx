@@ -5,7 +5,7 @@ import React, { use, useState } from "react";
 import UserManagement from "../user/page";
 
 import Profile from "@/components/admin/profile";
-import TimetableList from "@/components/admin/timetable";
+import MainComponent from "@/components/admin/timetablemain";
 import Institute from "@/components/admin/institute";
 
 
@@ -35,7 +35,7 @@ const AdminDashboard: React.FC = () => {
         )}
         
         {view === 'timetable' && (
-            <TimetableList />
+            <MainComponent />
         )}
         {view === 'profile' && (
             <Profile />

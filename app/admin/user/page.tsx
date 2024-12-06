@@ -1,5 +1,4 @@
 "use client"
-import { error } from "console";
 import React, { useState, useEffect } from "react";
 
 interface ManagerCreate {
@@ -14,7 +13,7 @@ interface TeacherCreate {
   email: string;
   phone: string;
   subject: string;
-  institute_id: number | null; // Assuming institute ID is a number
+  institute_id: number | null; 
 }
 
 const Dashboard: React.FC = () => {
@@ -24,6 +23,7 @@ const Dashboard: React.FC = () => {
     id: "",
     name: "",
     email: "",
+    phone_number: "",
     phone: "",
     subject: "",
     file: null as File | null,
@@ -33,7 +33,6 @@ const Dashboard: React.FC = () => {
   const instituteIdString = localStorage.getItem('Institute_id');
   const instituteId: number | null = instituteIdString ? parseInt(instituteIdString, 10) : null;
   const loggedRole = localStorage.getItem('role');
-  // State to hold the lists of users, teachers, and students
   const [users, setUsers] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -43,6 +42,7 @@ const Dashboard: React.FC = () => {
       id: "",
       name: "",
       email: "",
+      phone_number: "",
       phone: "",
       subject: "",
       file: null as File | null,
@@ -71,8 +71,8 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const addTeachersFromFile = async (file: File | null) => {
-    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/add-teachers/`;
+  const addTeachersFromFile = async (file: File, instituteId:any) => {
+    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/add-teachers-file/`;
     const formData = new FormData();
     formData.append('institute_id', instituteId?.toString() || '');
     
@@ -81,7 +81,10 @@ const Dashboard: React.FC = () => {
     } else {
       throw new Error("No file provided");
     }
-
+    for (const [key, value] of formData.entries()) {
+      console.log(`${key}:`, value);
+  }
+    
     try {
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -164,6 +167,43 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const updateTeacher = async (teacherId:any, teacherData:any) => {
+    try {
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/update-teacher/`; // API URL
+      const requestBody = {
+        institute_id: instituteId,
+        teacher_id: teacherId,
+        name: teacherData.name,
+        email: teacherData.email,
+        phone_number: teacherData.phone_number,
+        subject: teacherData.subject,
+      };
+
+
+      const response = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody), // Send the teacher data as JSON
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to update teacher');
+      }
+  
+      const data = await response.json();
+      console.log('Teacher updated successfully:', data);
+      return data; // Return the response data for further processing
+  
+    } catch (error) {
+      console.error('Error updating teacher:', error);
+      throw error; // Re-throw the error for further handling if needed
+    }
+};
+
+
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formType === "Add User") {
@@ -199,7 +239,9 @@ const Dashboard: React.FC = () => {
       }
     } else if (formType === "Add Teacher") {
         if (formData.file) {
-          await addTeachersFromFile(formData.file);
+          console.log('Adding teachers from file:', formData.file);
+          
+          await addTeachersFromFile(formData.file, instituteId);
         } else {
           await addTeachersManually();
         }
@@ -220,10 +262,27 @@ const Dashboard: React.FC = () => {
       } catch (error) {
         setStatus('Error: ' + (error as Error).message);
       }
-    }
+    }else if (formType === "Edit Teacher") {
+      try {
+        const teacherId = formData.id; // Assuming you have an id in formData for the teacher being
+        const teacherData = {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          subject: formData.subject,
+        };
+        await updateTeacher(teacherId, teacherData);
+        // Update local state after successful update
+        setTeachers(teachers.map(teacher => teacher.id === teacherId ? { ...teacher, ...
+        teacherData } : teacher));
+        setStatus('Teacher updated successfully');
+        } catch (error) {
+          setStatus('Error: ' + (error as Error).message)
+          }
     resetFormData();
     setShowForm(false);
   };
+};
 
   const deleteUser  = async (user_id:number, instituteId:number|null) => {
     const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/delete-user/${user_id}/?institute_id=${instituteId}`; // API URL
@@ -280,11 +339,12 @@ const Dashboard: React.FC = () => {
     });
     setFormType(type === "user" ? "Add User" : type === "teacher" ? "Add Teacher" : "Add Student");
     setShowForm(true);
-    handleDelete(id, type); // Remove the entry to allow for re-adding
   };
   
   const getData = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log(formType);
+    
     if (formType === "View User") {
       setUsers([...users, { ...formData }]);
       const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/users/`; // Ensure this environment variable is set to your API base URL
@@ -315,8 +375,30 @@ const Dashboard: React.FC = () => {
         console.error('Error fetching users:', error);
         throw error; // Re-throw the error for further handling if needed
       }
-    } else if (formType === "Add Teacher") {
-      setTeachers([...teachers, { ...formData }]);
+    } else if (formType === "View Teacher") {
+      try {
+        const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/teachers/?institute_id=${instituteId}`; // Ensure this environment variable is set to your API base URL
+
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          setStatus(errorData.detail)
+          throw new Error(errorData.detail || 'Failed to fetch teachers');
+        }
+
+        const fetchedteachers = await response.json();
+        setTeachers(fetchedteachers.data)
+        console.log('Teachers fetched successfully:', teachers);
+      } catch (error) {
+        console.error('Error fetching teachers:', error);
+        throw error; 
+      }
     } else if (formType === "Add Student") {
       setStudents([...students, { ...formData }]);
     }
@@ -428,7 +510,7 @@ const Dashboard: React.FC = () => {
               )}
 
               {/* Manual Entry Fields */}
-              {inputMethod === "manual" && (formType === "Add User" || formType === "Add Teacher" || formType === "Edit User") && (
+              {inputMethod === "manual" && (formType === "Add User" || formType === "Add Teacher" || formType === "Edit User" || formType === "Edit Teacher") && (
                 <>
                   <div className="mb-4">
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700">
@@ -472,7 +554,7 @@ const Dashboard: React.FC = () => {
                       type="text"
                       id="phone"
                       name="phone"
-                      value={formData.phone}
+                      value={formData.phone || formData.phone_number}
                       onChange={handleInputChange}
                       maxLength={15}
                       pattern="\d{10,15}"
@@ -617,6 +699,7 @@ const Dashboard: React.FC = () => {
                   <th className="border border-gray-300 p-2">Name</th>
                   <th className="border border-gray-300 p-2">Email</th>
                   <th className="border border-gray-300 p-2">Phone</th>
+                  <th className="border border-gray-300 p-2">Role</th>
                   <th className="border border-gray-300 p-2">Subject</th>
                   <th className="border border-gray-300 p-2">Actions</th>
                 </tr>
@@ -626,12 +709,16 @@ const Dashboard: React.FC = () => {
                   <tr key={index}>
                     <td className="border border-gray-300 p-2">{teacher.name}</td>
                     <td className="border border-gray-300 p-2">{teacher.email}</td>
-                    <td className="border border-gray-300 p-2">{teacher.phone}</td>
+                    <td className="border border-gray-300 p-2">{teacher.phone_number}</td>
+                    <td className="border border-gray-300 p-2">{teacher.role}</td>
                     <td className="border border-gray-300 p-2">{teacher.subject}</td>
                     <td className="border border-gray-300 p-2">
                       <button
                         className="px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-                        onClick={() => handleEdit(index, "teacher")}
+                        onClick={() => {
+                          handleEdit(index, "teacher")
+                          setFormType('Edit Teacher')
+                        }}
                       >
                         Edit
                       </button>

@@ -1,11 +1,17 @@
 "use client"
 
 import React, { useState, useEffect } from "react";
-import TimetableShow from "@/components/admin/timetableShow";
+import TimetableCreationPopup from "./timetableCreationPopup";
+import Timetable from "./timetable";
+import EditPeriodPopup from "./editPeriodPopup";
+import TimetableShow from "./timetableShow";
 
-const StudentView: React.FC = () => {
+const MainComponent: React.FC = () => {
+  const [isPopupOpen, setPopupOpen] = useState(false);
+  const [isTimetableVisible, setTimetableVisible] = useState(false);
   const [isTimetableViewed, setTimetableViewed] = useState(false);
   const [timetableData, setTimetableData] = useState<any>({});
+  const [editingPeriod, setEditingPeriod] = useState<any>(null);
   const [departments, setDepartments] = useState([]);
   const [depart, setDepart] = useState([]);
   const [selectedDepart, setSelectedDepart] = useState<string>("");
@@ -19,10 +25,45 @@ const StudentView: React.FC = () => {
   const instituteIdString = localStorage.getItem('Institute_id');
   const instituteId: number | null = instituteIdString ? parseInt(instituteIdString, 10) : null;
 
+  const handleCreateTimetableClick = () => {
+    try {
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/get-departments-and-semesters/?institute_id=${instituteId}`;
+      // Call API to get semester and department data
+      fetch(`${apiUrl}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then((response) => response.json())
+        .then((result) => {
+          if (result.success) {
+            // Update departments and semesters in state
+            setDepartments(result.data.map((d: any) => ({ id: d.department_id, name: d.department_name })));
+            // Flatten semesters for dropdown
+            const allSemesters = result.data.flatMap((d: any) =>
+              d.semesters.map((s: any) => ({ id: s.semester_id, name: s.semester_name }))
+            );
+            setSemesters(allSemesters);
+            setPopupOpen(true);
+          } else {
+            // Handle errors
+          }
+        }
+        );
+    } catch (error) {
+      // Handle errors
+    }
+  };
   console.log(departments);
   console.log(semesters);
 
+  const handleViewTimetableClick = () => {
+    setTimetableViewed(true);
+  };
+
   useEffect(() => {
+    if (isTimetableViewed) {
       const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/get-departments-and-semesters/?institute_id=${instituteId}`;
       fetch(apiUrl, {
         method: "GET",
@@ -43,8 +84,53 @@ const StudentView: React.FC = () => {
           }
         })
         .catch(() => setStatus("Error fetching data."));
-  }, []);
+    }
+  }, [isTimetableViewed]);
 
+  const handleClosePopup = () => {
+    setPopupOpen(false);
+  };
+
+  const handleNextStep = (data: any) => {
+    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/create-timetable/?institute_id=${instituteId}`;
+    // Call API to get timetable data
+    const formData = new FormData();
+    formData.append('institute_id', instituteId?.toString() || '');
+    formData.append('semester_id', data.semester);
+    formData.append('department_id', data.department);
+    formData.append('average_class_time', (data.averageClassTime !== undefined ? parseInt(data.averageClassTime, 10) : 0).toString());
+    formData.append('break_time', (data.breakTime !== undefined ? parseInt(data.breakTime, 10) : 0).toString());
+    formData.append('shift', data.shift);
+    formData.append('shift_start_time', data.shiftStartTime || '00:00');
+    formData.append('shift_end_time', data.shiftEndTime || '00:00');
+
+    fetch(apiUrl, {
+      method: "POST",
+      body: formData,
+    })
+      .then((response) => response.json())
+      .then((result) => {
+        if (result.success) {
+          setTimetableData(result.timetable);
+          setPopupOpen(false);
+          setTimetableVisible(true);
+        } else {
+          // Handle errors (display them in form)
+        }
+      });
+  };
+  console.log(timetableData);
+
+  const handleBackToForm = () => {
+    setTimetableVisible(false);
+    setPopupOpen(true);
+  };
+
+  const handleCreateFinalTimetable = () => {
+    // Call API to save final timetable data
+    setTimetableVisible(false);
+    setStatus('Timetable created successfully!');
+  };
   useEffect(() => {
     if (status) {
       const timer = setTimeout(() => {
@@ -84,8 +170,32 @@ const StudentView: React.FC = () => {
 
   return (
     <div className="p-4 space-y-4">
+      <div className="flex justify-center space-x-4">
+        <button
+          onClick={handleCreateTimetableClick}
+          className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+        >
+          Create Timetable
+        </button>
+        <button
+          onClick={handleViewTimetableClick}
+          className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
+        >
+          View Timetable
+        </button>
+      </div>
       {status && <div className="text-center text-red-500">{status}</div>}
+      {isPopupOpen && (
+        <TimetableCreationPopup
+          departments={departments}
+          semesters={semesters}
+          setsemesters={setSemesters}
+          onClose={handleClosePopup}
+          onNext={handleNextStep}
+        />
+      )}
 
+      {isTimetableViewed && (
         <div className="space-y-4">
           <div className="flex justify-center space-x-4">
             <select
@@ -144,8 +254,26 @@ const StudentView: React.FC = () => {
             />
           )}
         </div>
+      )}
+
+
+      {isTimetableVisible && timetableData && (
+        <Timetable
+          timetableData={timetableData}
+          onBack={handleBackToForm}
+          onCreate={handleCreateFinalTimetable}
+          onEditPeriod={setEditingPeriod}
+        />
+      )}
+
+      {editingPeriod && (
+        <EditPeriodPopup
+          period={editingPeriod}
+          onClose={() => setEditingPeriod(null)}
+        />
+      )}
     </div>
   );
 };
 
-export default StudentView;
+export default MainComponent;

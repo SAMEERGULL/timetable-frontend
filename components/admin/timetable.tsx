@@ -1,88 +1,71 @@
-import React, { useState } from "react";
-import SemesterDepartmentPopup from "@/components/admin/semesterDepartmentPopup";
-import TimetableCreationPopup from "@/components/admin/timetableCreationPopup";
-import TimetableView from "@/components/admin/timetableView";
+import React from "react";
 
-const CreateTimetable: React.FC = () => {
-  const [showPopup, setShowPopup] = useState(false); // For SemesterDepartmentPopup
-  const [showTimetableView, setShowTimetableView] = useState(false); // For TimetableView
-  const [isCreatingTimetable, setIsCreatingTimetable] = useState(false); // For TimetableCreationPopup
-  const [semesterData, setSemesterData] = useState<any>(null); // To hold semester data
-  const [timetableData, setTimetableData] = useState<any>(null); // To hold timetable data
+interface TimetableProps {
+  timetableData: any;
+  onBack: () => void;
+  onCreate: () => void;
+  onEditPeriod: (period: any) => void;
+}
 
-  const handleCreateTimetableClick = () => {
-    // Open the semester selection popup
-    setShowPopup(true);
-    setShowTimetableView(false); // Ensure the timetable view is hidden
-    setIsCreatingTimetable(false); // Ensure timetable creation is closed
-  };
-
-  const handleTimetableCreation = (data: any) => {
-    console.log("Timetable created:", data); // Log the created timetable data
-    setTimetableData(data); // Set the timetable data
-    setIsCreatingTimetable(false); // Close the creation popup
-    setShowTimetableView(true); // Show the timetable view
-  };
-
-  const handleViewTimetableClick = () => {
-    console.log("Viewing timetable:", timetableData); // Log the timetable data
-    setShowTimetableView(true); // Show the timetable view
-  };
+const Timetable: React.FC<TimetableProps> = ({
+  timetableData,
+  onBack,
+  onCreate,
+  onEditPeriod,
+}) => {
+  // Convert timetableData object to an array of days and periods
+  const daysOfWeek = Object.keys(timetableData);
 
   return (
-    <div className="p-6 bg-white shadow-lg rounded-lg">
-      <div className="flex justify-center space-x-4">
-        <div className="flex justify-center w-1/3 p-2">
-          <button
-            onClick={handleCreateTimetableClick}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg"
-          >
-            Create Timetable
-          </button>
-        </div>
-        <div className="flex justify-center w-1/3 p-2">
-          <button
-            onClick={handleViewTimetableClick}
-            className="w-full px-4 py-2 bg-green-600 text-white rounded-lg"
-          >
-            View Timetable
-          </button>
-        </div>
+    <div className="space-y-6 flex flex-col ms-48">
+        <h2 className="text-xl font-semibold">Timetable</h2>
+        <h4>Click on the fields to Edit Data.</h4>
+      <table className="table-auto w-90 border-collapse">
+        <thead>
+          <tr className="bg-gray-100">
+            <th className="px-2 py-2 border-b">Day</th>
+            <th className="px-2 py-2 border-b">Period 1</th>
+            <th className="px-2 py-2 border-b">Period 2</th>
+            {/* Add more periods as needed */}
+          </tr>
+        </thead>
+        <tbody>
+          {daysOfWeek.map((day: string, index: number) => (
+            <tr key={index} className="hover:bg-gray-50">
+              <td className="px-4 py-2 border-b">{day}</td>
+              {timetableData[day].map((period: any, idx: number) => (
+                <td
+                  key={idx}
+                  onClick={() => onEditPeriod(period)}
+                  className="px-2 py-2 border-b cursor-pointer hover:bg-blue-100"
+                  contentEditable
+                >
+                  {period.subject}
+                  {period.teacher}
+                  {period.class_name}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div className="flex justify-between mt-6">
+        <button
+          onClick={onBack}
+          className="px-6 py-2 bg-gray-400 text-white rounded-md hover:bg-gray-500 transition"
+        >
+          Back
+        </button>
+        <button
+          onClick={onCreate}
+          className="px-6 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition"
+        >
+          Create
+        </button>
       </div>
-
-      {showPopup && 
-        <SemesterDepartmentPopup 
-          onClose={() => {
-            setShowPopup(false); // Close the semester popup
-            setIsCreatingTimetable(false); // Ensure creation state is reset
-          }} 
-          onNext={(data) => {
-            setSemesterData(data); // Store selected semester and department
-            setIsCreatingTimetable(true); // Switch to timetable creation
-            setShowPopup(false); // Close the semester popup
-          }} 
-        />
-      }
-
-      {isCreatingTimetable && 
-        <TimetableCreationPopup 
-          onClose={() => {
-            setIsCreatingTimetable(false); // Close timetable creation
-            setShowPopup(true); // Optionally, go back to semester selection
-          }} 
-          onCreate={handleTimetableCreation} // Handle timetable creation
-          semesterData={semesterData} // Pass the semester data to the creation popup
-        />
-      }
-
-      {showTimetableView && 
-        <TimetableView 
-          onClose={() => setShowTimetableView(false)} 
-          timetableData={timetableData} // Pass the timetable data to TimetableView
-        />
-      }
     </div>
   );
 };
 
-export default CreateTimetable;
+export default Timetable;
